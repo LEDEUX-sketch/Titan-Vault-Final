@@ -9,6 +9,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Id } from "../../convex/_generated/dataModel";
 import Link from "next/link";
+import ConfirmModal from "../ConfirmModal";
+
 
 function formatPrice(price: number) {
     return `₱${price.toLocaleString("en-PH")}`;
@@ -20,6 +22,20 @@ export default function UserOrdersPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState<"active" | "history">("active");
     const [confirmingId, setConfirmingId] = useState<string | null>(null);
+    const [modalConfig, setModalConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        type: "primary" | "danger";
+    }>({
+        isOpen: false,
+        title: "",
+        message: "",
+        onConfirm: () => { },
+        type: "primary",
+    });
+
 
     const orders = useQuery(
         api.orders.getByUser,
@@ -35,35 +51,52 @@ export default function UserOrdersPage() {
         }
     }, [user, router]);
 
-    const handleConfirmReceipt = async (orderId: Id<"orders">) => {
+    const handleConfirmReceipt = (orderId: Id<"orders">) => {
         if (!user) return;
-        if (!window.confirm("Confirm that you have received this order?")) return;
 
-        setConfirmingId(orderId);
-        try {
-            await confirmReceived({ orderId, userId: user.userId as Id<"users"> });
-        } catch (error) {
-            console.error("Failed to confirm receipt:", error);
-            alert("Failed to confirm receipt. Please try again.");
-        } finally {
-            setConfirmingId(null);
-        }
+        setModalConfig({
+            isOpen: true,
+            title: "Confirm Receipt",
+            message: "Acknowledge that you have received all items in this order and the quality is satisfactory? This will mark the order as completed.",
+            type: "primary",
+            onConfirm: async () => {
+                setModalConfig(prev => ({ ...prev, isOpen: false }));
+                setConfirmingId(orderId);
+                try {
+                    await confirmReceived({ orderId, userId: user.userId as Id<"users"> });
+                } catch (error) {
+                    console.error("Failed to confirm receipt:", error);
+                    alert("Failed to confirm receipt. Please try again.");
+                } finally {
+                    setConfirmingId(null);
+                }
+            }
+        });
     };
 
-    const handleCancelOrder = async (orderId: Id<"orders">) => {
+    const handleCancelOrder = (orderId: Id<"orders">) => {
         if (!user) return;
-        if (!window.confirm("Are you sure you want to cancel this order? This action cannot be undone.")) return;
 
-        setConfirmingId(orderId);
-        try {
-            await cancelOrder({ orderId, userId: user.userId as Id<"users"> });
-        } catch (error) {
-            console.error("Failed to cancel order:", error);
-            alert("Failed to cancel order. Please try again.");
-        } finally {
-            setConfirmingId(null);
-        }
+        setModalConfig({
+            isOpen: true,
+            title: "Cancel Order",
+            message: "Are you sure you want to cancel this order? This action cannot be undone.",
+            type: "danger",
+            onConfirm: async () => {
+                setModalConfig(prev => ({ ...prev, isOpen: false }));
+                setConfirmingId(orderId);
+                try {
+                    await cancelOrder({ orderId, userId: user.userId as Id<"users"> });
+                } catch (error) {
+                    console.error("Failed to cancel order:", error);
+                    alert("Failed to cancel order. Please try again.");
+                } finally {
+                    setConfirmingId(null);
+                }
+            }
+        });
     };
+
 
     if (!user || orders === undefined) {
         return (
@@ -350,6 +383,17 @@ export default function UserOrdersPage() {
             </div>
 
             <Footer />
+
+            <ConfirmModal
+                isOpen={modalConfig.isOpen}
+                title={modalConfig.title}
+                message={modalConfig.message}
+                type={modalConfig.type}
+                onConfirm={modalConfig.onConfirm}
+                onCancel={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+                confirmText={modalConfig.type === "danger" ? "Yes, Cancel Order" : "Yes, Confirm Receipt"}
+            />
         </>
     );
 }
+

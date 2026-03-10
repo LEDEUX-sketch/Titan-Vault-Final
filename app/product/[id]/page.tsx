@@ -8,7 +8,9 @@ import { useAuth } from "../../AuthContext";
 import AuthModal from "../../AuthModal";
 import Header from "../../Header";
 import Footer from "../../Footer";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+
 
 function formatPrice(price: number) {
     return `₱${price.toLocaleString("en-PH")}`;
@@ -24,13 +26,15 @@ export default function ProductDetailPage({
     const [showAuth, setShowAuth] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
+    const router = useRouter();
+
 
     const product = useQuery(api.products.getById, {
         productId: id as Id<"products">,
     });
     const addToCart = useMutation(api.cart.add);
 
-    const handleAddToCart = async () => {
+    const handleAddToCart = async (redirectToCheckout = false) => {
         if (!user) {
             setShowAuth(true);
             return;
@@ -41,6 +45,12 @@ export default function ProductDetailPage({
                 productId: id as Id<"products">,
                 quantity: 1,
             });
+
+            if (redirectToCheckout) {
+                router.push("/checkout");
+                return;
+            }
+
             setToast("Added to cart!");
             setTimeout(() => setToast(null), 3000);
         } catch (err: unknown) {
@@ -48,6 +58,7 @@ export default function ProductDetailPage({
             setTimeout(() => setToast(null), 3000);
         }
     };
+
 
     if (product === undefined) {
         return (
@@ -182,18 +193,19 @@ export default function ProductDetailPage({
                         <div className="product-detail-actions">
                             <button
                                 className="btn-add-cart"
-                                onClick={handleAddToCart}
+                                onClick={() => handleAddToCart(false)}
                                 disabled={product.stock === 0}
                             >
                                 🛒 Add to Cart
                             </button>
                             <button
                                 className="btn-buy-now"
-                                onClick={handleAddToCart}
+                                onClick={() => handleAddToCart(true)}
                                 disabled={product.stock === 0}
                             >
                                 Buy Now
                             </button>
+
                         </div>
                     </div>
                 </div>
