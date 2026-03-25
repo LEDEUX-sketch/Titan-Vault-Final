@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
 // Simple hash function for demo purposes (NOT production-grade)
@@ -69,14 +69,33 @@ export const signIn = mutation({
         const status = user.status ?? "active";
 
         if (status === "banned") {
-            throw new Error("Your account has been banned. Please contact support.");
+            throw new ConvexError("Your account has been banned. Please contact support.");
         }
 
         if (status === "suspended") {
-            throw new Error("Your account has been suspended. Please contact support.");
+            // Auto-reactivate if suspension has expired
+            if (user.suspendedUntil && Date.now() >= user.suspendedUntil) {
+                await ctx.db.patch(user._id, { status: "active", suspendedUntil: undefined });
+            } else {
+                let remaining = "";
+                if (user.suspendedUntil) {
+                    const diff = user.suspendedUntil - Date.now();
+                    const hours = Math.floor(diff / 3600000);
+                    const mins = Math.floor((diff % 3600000) / 60000);
+                    if (hours > 0) {
+                        remaining = ` Suspension expires in ${hours}h ${mins}m.`;
+                    } else {
+                        remaining = ` Suspension expires in ${mins} minutes.`;
+                    }
+                }
+                throw new ConvexError(`Your account has been suspended.${remaining} Please contact support.`);
+            }
         }
 
-        return { userId: user._id, name: user.name, email: user.email, role, status };
+        // Re-read status after possible auto-reactivation
+        const currentStatus = user.suspendedUntil && Date.now() >= user.suspendedUntil ? "active" : status;
+
+        return { userId: user._id, name: user.name, email: user.email, role, status: currentStatus };
     },
 });
 

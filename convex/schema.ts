@@ -8,6 +8,7 @@ export default defineSchema({
         name: v.string(),
         role: v.optional(v.union(v.literal("admin"), v.literal("user"))),
         status: v.optional(v.union(v.literal("active"), v.literal("banned"), v.literal("suspended"))),
+        suspendedUntil: v.optional(v.number()),
         createdAt: v.number(),
     }).index("by_email", ["email"]),
 

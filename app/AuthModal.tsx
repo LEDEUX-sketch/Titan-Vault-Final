@@ -1,5 +1,7 @@
 "use client";
 
+import { ConvexError } from "convex/values";
+
 import { useState, FormEvent } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
@@ -70,12 +72,28 @@ export default function AuthModal({
             }
             onClose();
         } catch (err: unknown) {
+            let cleanMsg = "Something went wrong.";
+            if (err instanceof ConvexError) {
+                cleanMsg = typeof err.data === "string" ? err.data : "An error occurred.";
+            } else if (err instanceof Error) {
+                cleanMsg = err.message
+                    .replace(/^\[Request ID:.*?\]\s*/i, "")
+                    .replace(/^(Server\s+Error\s+)?Uncaught\s+Error:\s*/i, "")
+                    .replace(/^\[.*?\]\s*/, "")
+                    .split("\n")[0]
+                    .split(" at ")[0]
+                    .trim();
+            }
+
             if (mode === "signin" || mode === "admin") {
-                setError("Invalid email or password. Please try again.");
+                // Show actual error for suspension/ban messages, generic for auth failures
+                if (cleanMsg.toLowerCase().includes("suspended") || cleanMsg.toLowerCase().includes("banned")) {
+                    setError(cleanMsg);
+                } else {
+                    setError("Invalid email or password. Please try again.");
+                }
             } else {
-                const msg = err instanceof Error ? err.message : "Something went wrong.";
-                // Clean up prefixes like [ConvexError] or [Server Error]
-                setError(msg.replace(/^\[.*?\]\s*/, ""));
+                setError(cleanMsg);
             }
         } finally {
             setLoading(false);
