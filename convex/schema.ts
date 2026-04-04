@@ -9,6 +9,11 @@ export default defineSchema({
         role: v.optional(v.union(v.literal("admin"), v.literal("user"))),
         status: v.optional(v.union(v.literal("active"), v.literal("banned"), v.literal("suspended"))),
         suspendedUntil: v.optional(v.number()),
+        phone: v.optional(v.string()),
+        address: v.optional(v.string()),
+        city: v.optional(v.string()),
+        province: v.optional(v.string()),
+        zipCode: v.optional(v.string()),
         createdAt: v.number(),
     }).index("by_email", ["email"]),
 
@@ -71,6 +76,7 @@ export default defineSchema({
         ),
         totalAmount: v.number(),
         status: v.union(
+            v.literal("awaiting_approval"),
             v.literal("pending"),
             v.literal("processing"),
             v.literal("shipped"),

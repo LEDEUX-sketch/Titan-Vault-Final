@@ -17,13 +17,21 @@ export default function AdminProductsPage() {
     const products = useQuery(api.products.list, {});
     const deleteProduct = useMutation(api.products.deleteProduct);
     const updateStock = useMutation(api.products.updateStock);
+    const updatePrice = useMutation(api.products.updatePrice);
 
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [isUpdatingStock, setIsUpdatingStock] = useState<string | null>(null);
+    const [isUpdatingPrice, setIsUpdatingPrice] = useState<string | null>(null);
     const [stockModal, setStockModal] = useState<{ isOpen: boolean; productId: string | null; currentStock: number }>({
         isOpen: false,
         productId: null,
         currentStock: 0
+    });
+    const [priceModal, setPriceModal] = useState<{ isOpen: boolean; productId: string | null; currentPrice: number; productName: string }>({
+        isOpen: false,
+        productId: null,
+        currentPrice: 0,
+        productName: ""
     });
     const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; productId: string | null; productName: string }>({
         isOpen: false,
@@ -31,6 +39,7 @@ export default function AdminProductsPage() {
         productName: ""
     });
     const [newStockValue, setNewStockValue] = useState("");
+    const [newPriceValue, setNewPriceValue] = useState("");
 
     if (!user || products === undefined) {
         return (
@@ -64,6 +73,11 @@ export default function AdminProductsPage() {
         setNewStockValue(currentStock.toString());
     };
 
+    const openPriceModal = (productId: string, currentPrice: number, productName: string) => {
+        setPriceModal({ isOpen: true, productId, currentPrice, productName });
+        setNewPriceValue(currentPrice.toString());
+    };
+
     const handleUpdateStockSubmit = async () => {
         if (!stockModal.productId) return;
 
@@ -82,6 +96,27 @@ export default function AdminProductsPage() {
             alert("Error updating stock.");
         } finally {
             setIsUpdatingStock(null);
+        }
+    };
+
+    const handleUpdatePriceSubmit = async () => {
+        if (!priceModal.productId) return;
+
+        const newPrice = parseFloat(newPriceValue);
+        if (isNaN(newPrice) || newPrice < 0) {
+            alert("Invalid price. Please enter a valid number (0 or greater).");
+            return;
+        }
+
+        setIsUpdatingPrice(priceModal.productId);
+        try {
+            await updatePrice({ productId: priceModal.productId as any, newPrice });
+            setPriceModal({ isOpen: false, productId: null, currentPrice: 0, productName: "" });
+        } catch (error) {
+            console.error("Failed to update price:", error);
+            alert("Error updating price.");
+        } finally {
+            setIsUpdatingPrice(null);
         }
     };
 
@@ -291,6 +326,18 @@ export default function AdminProductsPage() {
                                     </td>
                                     <td style={{ ...S.td, textAlign: "right" }}>
                                         <button
+                                            onClick={() => openPriceModal(product._id, product.price, product.name)}
+                                            disabled={isUpdatingPrice === product._id}
+                                            style={{
+                                                ...S.actionBtn,
+                                                background: "#fef3c7",
+                                                color: "#b45309",
+                                                opacity: isUpdatingPrice === product._id ? 0.5 : 1
+                                            }}
+                                        >
+                                            {isUpdatingPrice === product._id ? "..." : "Price"}
+                                        </button>
+                                        <button
                                             onClick={() => openStockModal(product._id, product.stock)}
                                             disabled={isUpdatingStock === product._id}
                                             style={{
@@ -353,6 +400,48 @@ export default function AdminProductsPage() {
                                 disabled={isUpdatingStock === stockModal.productId}
                             >
                                 {isUpdatingStock === stockModal.productId ? "Saving..." : "Save Changes"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Price Update Modal */}
+            {priceModal.isOpen && (
+                <div style={S.modalOverlay} onClick={() => setPriceModal({ isOpen: false, productId: null, currentPrice: 0, productName: "" })}>
+                    <div style={S.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <h3 style={S.modalTitle}>Update Product Price</h3>
+                        <p style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "8px" }}>
+                            <strong>{priceModal.productName}</strong>
+                        </p>
+                        <p style={{ fontSize: "0.9rem", color: "#64748b", marginBottom: "16px" }}>
+                            Current price: <strong>₱{priceModal.currentPrice.toLocaleString("en-PH")}</strong>
+                        </p>
+                        <div style={{ position: "relative" }}>
+                            <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontWeight: 600, fontSize: "1rem" }}>₱</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                style={{ ...S.modalInput, paddingLeft: "32px" }}
+                                value={newPriceValue}
+                                onChange={(e) => setNewPriceValue(e.target.value)}
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleUpdatePriceSubmit();
+                                    if (e.key === "Escape") setPriceModal({ isOpen: false, productId: null, currentPrice: 0, productName: "" });
+                                }}
+                            />
+                        </div>
+                        <div style={S.modalActions}>
+                            <button style={S.btnSecondary} onClick={() => setPriceModal({ isOpen: false, productId: null, currentPrice: 0, productName: "" })}>
+                                Cancel
+                            </button>
+                            <button
+                                style={S.btnPrimary}
+                                onClick={handleUpdatePriceSubmit}
+                                disabled={isUpdatingPrice === priceModal.productId}
+                            >
+                                {isUpdatingPrice === priceModal.productId ? "Saving..." : "Update Price"}
                             </button>
                         </div>
                     </div>

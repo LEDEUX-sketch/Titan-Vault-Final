@@ -21,6 +21,7 @@ export default function CheckoutPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
 
+    const [hasHydrated, setHasHydrated] = useState(false);
     const [address, setAddress] = useState({
         fullName: "",
         phone: "",
@@ -29,6 +30,22 @@ export default function CheckoutPage() {
         province: "",
         zipCode: "",
     });
+
+    const userData = useQuery(api.auth.getUser, user ? { userId: user.userId as Id<"users"> } : "skip");
+
+    useEffect(() => {
+        if (userData && !hasHydrated) {
+            setAddress({
+                fullName: userData.name || "",
+                phone: userData.phone || "",
+                address: userData.address || "",
+                city: userData.city || "",
+                province: userData.province || "",
+                zipCode: userData.zipCode || "",
+            });
+            setHasHydrated(true);
+        }
+    }, [userData, hasHydrated]);
 
     const cartItems = useQuery(
         api.cart.get,
@@ -43,7 +60,13 @@ export default function CheckoutPage() {
         }
     }, [user, router]);
 
-    if (!user || cartItems === undefined) {
+    useEffect(() => {
+        if (cartItems && cartItems.length === 0) {
+            router.push("/cart");
+        }
+    }, [cartItems, router]);
+
+    if (!user || cartItems === undefined || cartItems.length === 0) {
         return (
             <>
                 <Header
@@ -57,11 +80,6 @@ export default function CheckoutPage() {
                 </div>
             </>
         );
-    }
-
-    if (cartItems.length === 0) {
-        router.push("/cart");
-        return null;
     }
 
     const subtotal =
@@ -96,7 +114,7 @@ export default function CheckoutPage() {
                 shippingAddress: address,
             });
 
-            setToast("Order placed successfully!");
+            setToast("Order submitted! Awaiting admin approval.");
             setTimeout(() => {
                 router.push("/orders");
             }, 2000);

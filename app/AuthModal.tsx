@@ -13,17 +13,21 @@ export default function AuthModal({
 }: {
     onClose: () => void;
 }) {
-    const [mode, setMode] = useState<"signin" | "register" | "admin">("signin");
+    const [mode, setMode] = useState<"signin" | "register">("signin");
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [phone, setPhone] = useState("");
+    const [address, setAddress] = useState("");
+    const [city, setCity] = useState("");
+    const [province, setProvince] = useState("");
+    const [zipCode, setZipCode] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
     const { setUser } = useAuth();
     const signIn = useMutation(api.auth.signIn);
     const register = useMutation(api.auth.register);
-    const adminLogin = useMutation(api.auth.adminLogin);
     const router = useRouter();
 
     const handleSubmit = async (e: FormEvent) => {
@@ -38,7 +42,12 @@ export default function AuthModal({
                     setLoading(false);
                     return;
                 }
-                const result = await register({ email, password, name });
+                if (!phone.trim() || !address.trim() || !city.trim() || !province.trim() || !zipCode.trim()) {
+                    setError("All fields are required.");
+                    setLoading(false);
+                    return;
+                }
+                const result = await register({ email, password, name, phone, address, city, province, zipCode });
                 setUser({
                     userId: result.userId,
                     name: result.name,
@@ -49,13 +58,6 @@ export default function AuthModal({
             } else {
                 const result = await signIn({ email, password });
 
-                // If on Admin tab, verify user is actually an admin
-                if (mode === "admin" && (result.role ?? "user") !== "admin") {
-                    setError("This account does not have administrator privileges.");
-                    setLoading(false);
-                    return;
-                }
-
                 setUser({
                     userId: result.userId,
                     name: result.name,
@@ -64,6 +66,7 @@ export default function AuthModal({
                     status: result.status ?? "active",
                 });
 
+                // If admin signs in via regular modal, redirect to dashboard
                 if ((result.role ?? "user") === "admin") {
                     onClose();
                     router.push("/admin");
@@ -85,8 +88,7 @@ export default function AuthModal({
                     .trim();
             }
 
-            if (mode === "signin" || mode === "admin") {
-                // Show actual error for suspension/ban messages, generic for auth failures
+            if (mode === "signin") {
                 if (cleanMsg.toLowerCase().includes("suspended") || cleanMsg.toLowerCase().includes("banned")) {
                     setError(cleanMsg);
                 } else {
@@ -101,12 +103,17 @@ export default function AuthModal({
     };
 
 
-    const switchMode = (newMode: "signin" | "register" | "admin") => {
+    const switchMode = (newMode: "signin" | "register") => {
         setMode(newMode);
         setError("");
         setEmail("");
         setPassword("");
         setName("");
+        setPhone("");
+        setAddress("");
+        setCity("");
+        setProvince("");
+        setZipCode("");
     };
 
     /* ——— Inline styles for the mode tabs ——— */
@@ -134,71 +141,12 @@ export default function AuthModal({
         textAlign: "center" as const,
     });
 
-    const adminInfoStyle: React.CSSProperties = {
-        background: "linear-gradient(135deg, #f8f9fa, #eef1f5)",
-        borderRadius: 10,
-        padding: "20px",
-        marginBottom: 20,
-        border: "1px solid #e2e5ea",
-    };
-
-    const adminInfoTitle: React.CSSProperties = {
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        fontSize: "0.9rem",
-        fontWeight: 600,
-        color: "#1a1a2e",
-        marginBottom: 14,
-    };
-
-    const credentialRow: React.CSSProperties = {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "8px 12px",
-        background: "#fff",
-        borderRadius: 6,
-        marginBottom: 6,
-        fontSize: "0.85rem",
-        border: "1px solid #e8e8e8",
-    };
-
-    const credentialLabel: React.CSSProperties = {
-        color: "#757575",
-        fontWeight: 500,
-    };
-
-    const credentialValue: React.CSSProperties = {
-        color: "#222",
-        fontWeight: 600,
-        fontFamily: "monospace",
-    };
-
-    const adminBtnStyle: React.CSSProperties = {
-        width: "100%",
-        padding: "13px",
-        background: "linear-gradient(135deg, #1a1a2e, #16213e)",
-        color: "#fff",
-        border: "none",
-        borderRadius: 10,
-        fontSize: "0.92rem",
-        fontWeight: 600,
-        cursor: loading ? "not-allowed" : "pointer",
-        opacity: loading ? 0.6 : 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        transition: "all 0.15s ease",
-    };
-
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div
                 className="modal-content"
                 onClick={(e) => e.stopPropagation()}
-                style={{ position: "relative" }}
+                style={{ position: "relative", maxHeight: "90vh", overflowY: "auto" }}
             >
                 <button className="modal-close" onClick={onClose}>
                     ×
@@ -207,16 +155,12 @@ export default function AuthModal({
                 <h2>
                     {mode === "signin"
                         ? "Welcome Back!"
-                        : mode === "register"
-                            ? "Create Account"
-                            : "Admin Login"}
+                        : "Create Account"}
                 </h2>
                 <p className="subtitle">
                     {mode === "signin"
                         ? "Sign in to access your TitanVault account"
-                        : mode === "register"
-                            ? "Join TitanVault to start collecting"
-                            : "Sign in with administrator credentials"}
+                        : "Join TitanVault to start collecting"}
                 </p>
 
                 {/* ===== Tab Bar ===== */}
@@ -227,15 +171,12 @@ export default function AuthModal({
                     <button style={tabStyle(mode === "register")} onClick={() => switchMode("register")}>
                         Register
                     </button>
-                    <button style={tabStyle(mode === "admin")} onClick={() => switchMode("admin")}>
-                        Admin
-                    </button>
                 </div>
 
                 {/* ===== Sign In / Register Forms ===== */}
-                {(mode === "signin" || mode === "register") && (
-                    <form onSubmit={handleSubmit}>
-                        {mode === "register" && (
+                <form onSubmit={handleSubmit}>
+                    {mode === "register" && (
+                        <>
                             <div className="form-group">
                                 <label>Full Name</label>
                                 <input
@@ -245,81 +186,88 @@ export default function AuthModal({
                                     onChange={(e) => setName(e.target.value)}
                                 />
                             </div>
-                        )}
+                            <div className="form-group">
+                                <label>Phone Number</label>
+                                <input
+                                    type="text"
+                                    placeholder="09123456789"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>Exact Address</label>
+                                <input
+                                    type="text"
+                                    placeholder="House No., Street Name, Barangay"
+                                    value={address}
+                                    onChange={(e) => setAddress(e.target.value)}
+                                />
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+                                <div className="form-group" style={{ marginBottom: 0 }}>
+                                    <label>City</label>
+                                    <input
+                                        type="text"
+                                        placeholder="City"
+                                        value={city}
+                                        onChange={(e) => setCity(e.target.value)}
+                                    />
+                                </div>
+                                <div className="form-group" style={{ marginBottom: 0 }}>
+                                    <label>Province</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Province"
+                                        value={province}
+                                        onChange={(e) => setProvince(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>Zip Code</label>
+                                <input
+                                    type="text"
+                                    placeholder="Zip Code"
+                                    value={zipCode}
+                                    onChange={(e) => setZipCode(e.target.value)}
+                                />
+                            </div>
+                        </>
+                    )}
 
-                        <div className="form-group">
-                            <label>Email Address</label>
-                            <input
-                                type="email"
-                                placeholder="you@email.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                            />
-                        </div>
+                    <div className="form-group">
+                        <label>Email Address</label>
+                        <input
+                            type="email"
+                            placeholder="you@email.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
 
-                        <div className="form-group">
-                            <label>Password</label>
-                            <input
-                                type="password"
-                                placeholder="••••••••"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                            />
-                        </div>
+                    <div className="form-group">
+                        <label>Password</label>
+                        <input
+                            type="password"
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
 
-                        {error && <p className="form-error">{error}</p>}
+                    {error && <p className="form-error">{error}</p>}
 
-                        <button type="submit" className="btn-primary" disabled={loading}>
-                            {loading
-                                ? "Please wait..."
-                                : mode === "signin"
-                                    ? "Sign In"
-                                    : "Create Account"}
-                        </button>
-                    </form>
-                )}
-
-                {/* ===== Admin Login Form ===== */}
-                {mode === "admin" && (
-                    <form onSubmit={handleSubmit} autoComplete="off">
-                        <div className="form-group">
-                            <label>Admin Email</label>
-                            <input
-                                type="email"
-                                placeholder="Enter admin email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                autoComplete="off"
-                                required
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label>Admin Password</label>
-                            <input
-                                type="password"
-                                placeholder="Enter admin password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                autoComplete="new-password"
-                                required
-                            />
-                        </div>
-
-                        {error && <p className="form-error">{error}</p>}
-
-                        <button type="submit" style={adminBtnStyle} disabled={loading}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
-                                <polyline points="10,17 15,12 10,7" />
-                                <line x1="15" y1="12" x2="3" y2="12" />
-                            </svg>
-                            {loading ? "Logging in..." : "Login as Admin"}
-                        </button>
-                    </form>
-                )}
+                    <button type="submit" className="btn-primary" disabled={loading}>
+                        {loading
+                            ? "Please wait..."
+                            : mode === "signin"
+                                ? "Sign In"
+                                : "Create Account"}
+                    </button>
+                </form>
             </div>
         </div>
     );

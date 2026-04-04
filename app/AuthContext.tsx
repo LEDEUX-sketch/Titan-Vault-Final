@@ -7,6 +7,7 @@ import {
     useEffect,
     ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 
 type User = {
     userId: string;
@@ -31,37 +32,71 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
+    const pathname = usePathname();
+    const isAdminRoute = pathname?.startsWith("/admin");
+
+    const [normalUser, setNormalUser] = useState<User | null>(null);
+    const [adminUser, setAdminUser] = useState<User | null>(null);
 
     useEffect(() => {
-        const stored = localStorage.getItem("titanvault_user");
-        if (stored) {
-            try {
-                setUser(JSON.parse(stored));
-            } catch {
-                localStorage.removeItem("titanvault_user");
-            }
+        const storedUser = localStorage.getItem("titanvault_user");
+        if (storedUser) {
+            try { 
+                const parsed = JSON.parse(storedUser);
+                if (parsed?.role === "admin") {
+                    localStorage.removeItem("titanvault_user");
+                } else {
+                    setNormalUser(parsed); 
+                }
+            } catch { localStorage.removeItem("titanvault_user"); }
+        }
+        
+        const storedAdmin = localStorage.getItem("titanvault_admin");
+        if (storedAdmin) {
+            try { 
+                const parsed = JSON.parse(storedAdmin);
+                if (parsed?.role !== "admin") {
+                    localStorage.removeItem("titanvault_admin");
+                } else {
+                    setAdminUser(parsed); 
+                }
+            } catch { localStorage.removeItem("titanvault_admin"); }
         }
     }, []);
 
     const handleSetUser = (user: User | null) => {
-        setUser(user);
-        if (user) {
-            localStorage.setItem("titanvault_user", JSON.stringify(user));
+        if (isAdminRoute) {
+            setAdminUser(user);
+            if (user) {
+                localStorage.setItem("titanvault_admin", JSON.stringify(user));
+            } else {
+                localStorage.removeItem("titanvault_admin");
+            }
         } else {
-            localStorage.removeItem("titanvault_user");
+            setNormalUser(user);
+            if (user) {
+                localStorage.setItem("titanvault_user", JSON.stringify(user));
+            } else {
+                localStorage.removeItem("titanvault_user");
+            }
         }
     };
 
     const logout = () => {
-        setUser(null);
-        localStorage.removeItem("titanvault_user");
+        if (isAdminRoute) {
+            setAdminUser(null);
+            localStorage.removeItem("titanvault_admin");
+        } else {
+            setNormalUser(null);
+            localStorage.removeItem("titanvault_user");
+        }
     };
 
-    const isAdmin = user?.role === "admin";
+    const activeUser = isAdminRoute ? adminUser : normalUser;
+    const isAdmin = activeUser?.role === "admin";
 
     return (
-        <AuthContext.Provider value={{ user, setUser: handleSetUser, logout, isAdmin }}>
+        <AuthContext.Provider value={{ user: activeUser, setUser: handleSetUser, logout, isAdmin }}>
             {children}
         </AuthContext.Provider>
     );

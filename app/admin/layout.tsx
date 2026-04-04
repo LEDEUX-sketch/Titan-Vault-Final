@@ -133,11 +133,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     useEffect(() => { setMounted(true); }, []);
 
+    // Allow the login page to render without auth
+    const isLoginPage = pathname === "/admin/login";
+
     useEffect(() => {
-        if (mounted && (!user || !isAdmin)) {
-            router.push("/");
+        if (mounted && !isLoginPage && (!user || !isAdmin)) {
+            router.push("/admin/login");
         }
-    }, [mounted, user, isAdmin, router]);
+    }, [mounted, user, isAdmin, router, isLoginPage]);
+
+    // Login page should render without the admin sidebar layout
+    if (isLoginPage) {
+        return <>{children}</>;
+    }
 
     if (!mounted || !user || !isAdmin) {
         return (
@@ -153,9 +161,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
         <div style={S.container}>
             <aside style={S.sidebar}>
-                <Link href="/" style={{ textDecoration: "none" }}>
+                <div style={{ textDecoration: "none" }}>
                     <h2 style={S.sidebarTitle}>TitanAdmin</h2>
-                </Link>
+                </div>
 
                 <nav style={{ display: "flex", flexDirection: "column" }}>
                     <Link href="/admin" style={isActive("/admin") ? S.navItemActive : S.navItem}>
@@ -189,14 +197,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </svg>
                         Users
                     </Link>
-                    <button onClick={() => router.push("/")} style={{ ...S.navItem, marginTop: "20px", background: "none", border: "none", cursor: "pointer", width: "100%", textAlign: "left" }}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                            <polyline points="16 17 21 12 16 7"></polyline>
-                            <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
-                        Exit Admin
-                    </button>
                 </nav>
 
                 <div style={S.sidebarFooter}>
@@ -207,7 +207,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <div style={{ ...S.userEmail, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</div>
                         </div>
                     </div>
-                    <button style={S.logoutBtn} onClick={() => { logout(); router.push("/"); }}>
+                    <button style={S.logoutBtn} onClick={() => { logout(); router.push("/admin/login"); }}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16,17 21,12 16,7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
                         Sign Out
                     </button>

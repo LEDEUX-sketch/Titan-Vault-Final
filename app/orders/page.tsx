@@ -114,7 +114,7 @@ export default function UserOrdersPage() {
         );
     }
 
-    const activeOrders = orders.filter(o => o.status === "pending" || o.status === "processing" || o.status === "shipped" || o.status === "delivered");
+    const activeOrders = orders.filter(o => o.status === "awaiting_approval" || o.status === "pending" || o.status === "processing" || o.status === "shipped" || o.status === "delivered");
     const historyOrders = orders.filter(o => o.status === "completed" || o.status === "cancelled");
     const displayedOrders = activeTab === "active" ? activeOrders : historyOrders;
 
@@ -220,12 +220,12 @@ export default function UserOrdersPage() {
                                             fontSize: "0.75rem",
                                             fontWeight: "700",
                                             textTransform: "uppercase",
-                                            background: order.status === "completed" ? "#ecfdf5" : order.status === "shipped" || order.status === "delivered" ? "#eff6ff" : "#fffbeb",
-                                            color: order.status === "completed" ? "#22c55e" : order.status === "shipped" || order.status === "delivered" ? "#3b82f6" : "#f59e0b",
-                                            border: `1px solid ${order.status === "completed" ? "#d1fae5" : order.status === "shipped" || order.status === "delivered" ? "#dbeafe" : "#fef3c7"}`,
+                                            background: order.status === "completed" ? "#ecfdf5" : order.status === "shipped" || order.status === "delivered" ? "#eff6ff" : order.status === "awaiting_approval" ? "#fef3c7" : "#fffbeb",
+                                            color: order.status === "completed" ? "#22c55e" : order.status === "shipped" || order.status === "delivered" ? "#3b82f6" : order.status === "awaiting_approval" ? "#d97706" : "#f59e0b",
+                                            border: `1px solid ${order.status === "completed" ? "#d1fae5" : order.status === "shipped" || order.status === "delivered" ? "#dbeafe" : order.status === "awaiting_approval" ? "#fde68a" : "#fef3c7"}`,
                                             letterSpacing: "0.5px"
                                         }}>
-                                            {order.status}
+                                            {order.status === "awaiting_approval" ? "Awaiting Approval" : order.status}
                                         </span>
                                     </div>
                                 </div>
@@ -239,13 +239,14 @@ export default function UserOrdersPage() {
                                     marginBottom: "10px"
                                 }}>
                                     {[
+                                        { s: "awaiting_approval", l: "Approval" },
                                         { s: "pending", l: "Pending" },
                                         { s: "processing", l: "Processing" },
                                         { s: "shipped", l: "Shipped" },
                                         { s: "completed", l: "Received" }
                                     ].map((step, i, arr) => {
-                                        const statuses = ["pending", "processing", "shipped", "delivered", "completed"];
-                                        const currentIdx = statuses.indexOf(order.status || "pending");
+                                        const statuses = ["awaiting_approval", "pending", "processing", "shipped", "delivered", "completed"];
+                                        const currentIdx = statuses.indexOf(order.status || "awaiting_approval");
                                         const stepIdx = statuses.indexOf(step.s);
                                         const isActive = currentIdx >= stepIdx;
                                         const isLast = i === arr.length - 1;
@@ -257,7 +258,7 @@ export default function UserOrdersPage() {
                                                         width: "24px",
                                                         height: "24px",
                                                         borderRadius: "50%",
-                                                        background: isActive ? "var(--primary)" : "#f0f0f0",
+                                                        background: isActive ? (step.s === "awaiting_approval" && order.status === "awaiting_approval" ? "#d97706" : "var(--primary)") : "#f0f0f0",
                                                         display: "flex",
                                                         alignItems: "center",
                                                         justifyContent: "center",
@@ -327,7 +328,26 @@ export default function UserOrdersPage() {
                                         <div style={{ fontSize: "1.1rem", fontWeight: "800", color: "var(--text-primary)" }}>
                                             Total: <span style={{ color: "var(--primary)" }}>{formatPrice(order.totalAmount)}</span>
                                         </div>
-                                        {activeTab === "active" && (
+                                        {activeTab === "active" && order.status === "awaiting_approval" ? (
+                                            <div style={{
+                                                padding: "8px 16px",
+                                                fontSize: "0.8rem",
+                                                borderRadius: "10px",
+                                                background: "#fef3c7",
+                                                border: "1px solid #fde68a",
+                                                color: "#92400e",
+                                                fontWeight: 600,
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "6px"
+                                            }}>
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2">
+                                                    <circle cx="12" cy="12" r="10" />
+                                                    <polyline points="12 6 12 12 16 14" />
+                                                </svg>
+                                                Waiting for admin approval
+                                            </div>
+                                        ) : activeTab === "active" && (
                                             <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                                                 <button
                                                     onClick={() => handleCancelOrder(order._id)}

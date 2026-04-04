@@ -143,6 +143,22 @@ export const updateStock = mutation({
     },
 });
 
+export const updatePrice = mutation({
+    args: {
+        productId: v.id("products"),
+        newPrice: v.number()
+    },
+    handler: async (ctx, args) => {
+        if (args.newPrice < 0) {
+            throw new Error("Price cannot be negative.");
+        }
+        await ctx.db.patch(args.productId, {
+            price: args.newPrice
+        });
+        return { success: true };
+    },
+});
+
 export const generateUploadUrl = mutation(async (ctx) => {
     return await ctx.storage.generateUploadUrl();
 });

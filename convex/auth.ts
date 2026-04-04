@@ -21,6 +21,11 @@ export const register = mutation({
         email: v.string(),
         password: v.string(),
         name: v.string(),
+        phone: v.string(),
+        address: v.string(),
+        city: v.string(),
+        province: v.string(),
+        zipCode: v.string(),
     },
     handler: async (ctx, args) => {
         // Check if user already exists
@@ -37,6 +42,11 @@ export const register = mutation({
             email: args.email,
             passwordHash: simpleHash(args.password),
             name: args.name,
+            phone: args.phone,
+            address: args.address,
+            city: args.city,
+            province: args.province,
+            zipCode: args.zipCode,
             role: "user",
             status: "active",
             createdAt: Date.now(),
